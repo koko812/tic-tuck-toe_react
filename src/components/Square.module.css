@@ -1,0 +1,28 @@
+.square {
+    width: 20vw;
+    max-width: 80px;
+    height: 20vw;
+    max-height: 80px;
+    font-size: 6vw;
+    max-font-size: 32px;
+    font-family: monospace;
+    margin: 2vw;
+    line-height: 1;
+    text-align: center;
+    vertical-align: middle;
+    box-sizing: border-box;
+    cursor: pointer;
+    user-select: none;
+}
+
+.xStyle {
+    color: blue;
+}
+
+.oStyle {
+    color: red;
+}
+
+.highlight {
+    background-color: lightyellow;
+}
