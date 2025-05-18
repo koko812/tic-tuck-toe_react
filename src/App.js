@@ -38,11 +38,22 @@ const styles = {
     padding: '8px 16px',
     fontSize: '16px',
   },
+  titleButton: {
+    marginTop: '40px',
+    padding: '12px 24px',
+    fontSize: '20px',
+  },
+  returnButton: {
+    marginTop: '20px',
+    padding: '8px 16px',
+    fontSize: '16px',
+    display: 'block',
+    marginLeft: 'auto',
+    marginRight: 'auto',
+  },
 };
 
-// Square は value, onClick, highlight を props として受け取る
 function Square({ value, onClick, highlight }) {
-  // X/O の色と勝者マスハイライトを合成
   const style = {
     ...styles.square,
     ...(value === 'X' ? styles.xStyle : value === 'O' ? styles.oStyle : {}),
@@ -56,10 +67,11 @@ function Square({ value, onClick, highlight }) {
 }
 
 function App() {
-  const [squares, setSquares] = useState(Array(9).fill(null)); // 9マス分の状態（null, 'X', 'O'）を保持
-  const [isXTurn, setIsXTurn] = useState(true); // 手番のトラッキング
+  const [view, setView] = useState('title'); // 'title' or 'game'
+  const [squares, setSquares] = useState(Array(9).fill(null));
+  const [isXTurn, setIsXTurn] = useState(true);
 
-  const result = calculateWinner(squares); // 勝者（'X' or 'O'）または 'draw' または null
+  const result = calculateWinner(squares);
   const winner = typeof result === 'string' ? result : result?.winner;
   const highlightSquares = Array(9).fill(false);
   if (result && result.line) {
@@ -67,8 +79,7 @@ function App() {
   }
 
   const handleClick = (index) => {
-    if (squares[index] || winner) return; // 既に埋まっている or 勝敗が決まっているなら無視
-
+    if (squares[index] || winner) return;
     const nextSquares = squares.slice();
     nextSquares[index] = isXTurn ? 'X' : 'O';
     setSquares(nextSquares);
@@ -80,11 +91,22 @@ function App() {
     setIsXTurn(true);
   };
 
+  if (view === 'title') {
+    return (
+      <div style={styles.container}>
+        <h1>ようこそ 〇×ゲームへ</h1>
+        <p>React の状態遷移を体験しよう！</p>
+        <button style={styles.titleButton} onClick={() => setView('game')}>
+          ゲーム開始
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
       <h1>〇×ゲーム（Tic Tac Toe）</h1>
       <p>
-        {/* 勝敗に応じたメッセージ表示 */}
         {winner === 'draw'
           ? '引き分けです'
           : winner
@@ -101,11 +123,15 @@ function App() {
         ))}
       </div>
       <button onClick={handleReset} style={styles.resetButton}>リセット</button>
+      {(winner || result === 'draw') && (
+        <button onClick={() => setView('title')} style={styles.returnButton}>
+          タイトルに戻る
+        </button>
+      )}
     </div>
   );
 }
 
-// 勝者判定と、勝利ラインの情報も返すよう拡張
 function calculateWinner(squares) {
   const lines = [
     [0, 1, 2],
@@ -119,11 +145,11 @@ function calculateWinner(squares) {
   ];
   for (const [a, b, c] of lines) {
     if (squares[a] && squares[a] === squares[b] && squares[b] === squares[c]) {
-      return { winner: squares[a], line: [a, b, c] }; // 勝利者とラインを返す
+      return { winner: squares[a], line: [a, b, c] };
     }
   }
   if (squares.every(Boolean)) {
-    return 'draw'; // 引き分け
+    return 'draw';
   }
   return null;
 }
