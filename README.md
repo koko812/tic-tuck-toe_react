@@ -72,6 +72,8 @@ npm start
 開発の改善履歴や学びは [`CHANGELOG.md`](./CHANGELOG.md) に詳しく記録しています。
 
 ---
+## 📺 ゲーム画面
+
 [![Image from Gyazo](https://i.gyazo.com/05244510b2611e05cf16473d126f6d23.png)](https://gyazo.com/05244510b2611e05cf16473d126f6d23)
 ---
 
