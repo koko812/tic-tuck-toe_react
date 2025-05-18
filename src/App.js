@@ -25,13 +25,13 @@ const styles = {
     boxSizing: 'border-box',
   },
   xStyle: {
-    color: 'blue', // X は青で表示
+    color: 'blue',
   },
   oStyle: {
-    color: 'red', // O は赤で表示
+    color: 'red',
   },
   highlight: {
-    backgroundColor: 'lightyellow', // 勝者マスのハイライト用
+    backgroundColor: 'lightyellow',
   },
   resetButton: {
     marginTop: '20px',
@@ -39,9 +39,13 @@ const styles = {
     fontSize: '16px',
   },
   titleButton: {
-    marginTop: '40px',
+    marginTop: 20,
     padding: '12px 24px',
     fontSize: '20px',
+    display: 'block',       // 縦並びにする
+    width: '200px',         // ボタン幅を揃える（任意）
+    marginLeft: 'auto',
+    marginRight: 'auto',
   },
   returnButton: {
     marginTop: '20px',
@@ -70,7 +74,7 @@ function App() {
   const [view, setView] = useState('title');
   const [squares, setSquares] = useState(Array(9).fill(null));
   const [isXTurn, setIsXTurn] = useState(true);
-  const [mode, setMode] = useState(null); // 'single' or 'multi'
+  const [mode, setMode] = useState(null); // 'single', 'hard', 'multi'
 
   const result = calculateWinner(squares);
   const winner = typeof result === 'string' ? result : result?.winner;
@@ -80,20 +84,17 @@ function App() {
     for (const i of result.line) highlightSquares[i] = true;
   }
 
-  // 🟢 1. ゲーム状態だけをリセット（盤面、手番）
   const handleResetGameState = () => {
     setSquares(Array(9).fill(null));
     setIsXTurn(true);
   };
 
-  // 🟢 2. 指定モードでゲーム開始（タイトル → ゲーム画面へ）
   const startGame = (selectedMode) => {
     handleResetGameState();
     setMode(selectedMode);
     setView('game');
   };
 
-  // 🟢 3. タイトルに戻る（状態・モードをすべて初期化）
   const returnToTitle = () => {
     handleResetGameState();
     setMode(null);
@@ -102,18 +103,24 @@ function App() {
 
   const handleClick = (index) => {
     if (squares[index] || winner) return;
+
     const nextSquares = squares.slice();
     nextSquares[index] = isXTurn ? 'X' : 'O';
     setSquares(nextSquares);
     setIsXTurn(!isXTurn);
 
-    // CPU行動（1人プレイ時）
-    if (mode === 'single' && isXTurn === true) {
+    if ((mode === 'single' || mode === 'hard') && isXTurn === true) {
       setTimeout(() => {
-        const index = findBestMove(nextSquares, 'O', 'X');
-        if (index !== undefined) {
-          nextSquares[index] = 'O';
-          setSquares([...nextSquares]);
+        let cpuMove;
+        if (mode === 'single') {
+          cpuMove = findBestMoveSimple(nextSquares, 'O', 'X');
+        } else if (mode === 'hard') {
+          cpuMove = findBestMoveMinimax(nextSquares, 'O', 'X');
+        }
+        if (cpuMove !== undefined) {
+          const newSquares = nextSquares.slice();
+          newSquares[cpuMove] = 'O';
+          setSquares(newSquares);
           setIsXTurn(true);
         }
       }, 300);
@@ -126,9 +133,11 @@ function App() {
         <h1>ようこそ 〇×ゲームへ</h1>
         <p>モードを選んでください</p>
         <button style={styles.titleButton} onClick={() => startGame('single')}>
-          1人で遊ぶ
+          1人で遊ぶ<br />（普通CPU）
         </button>
-        <br />
+        <button style={styles.titleButton} onClick={() => startGame('hard')}>
+          1人で遊ぶ<br />（強いCPU）
+        </button>
         <button style={styles.titleButton} onClick={() => startGame('multi')}>
           2人で遊ぶ
         </button>
@@ -173,37 +182,86 @@ function App() {
   );
 }
 
-
-function findBestMove(squares, myMark, opponentMark) {
+// 普通CPUロジック（勝てる手、防げる手、ランダム）
+function findBestMoveSimple(squares, myMark, opponentMark) {
   const lines = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8],
     [0, 3, 6], [1, 4, 7], [2, 5, 8],
     [0, 4, 8], [2, 4, 6],
   ];
 
-  // 勝てる手を探す
   for (const [a, b, c] of lines) {
     const line = [squares[a], squares[b], squares[c]];
-    const marks = line.filter(Boolean);
-    if (marks.filter(m => m === myMark).length === 2 && line.includes(null)) {
+    if (line.filter(m => m === myMark).length === 2 && line.includes(null)) {
       return [a, b, c].find(i => squares[i] === null);
     }
   }
 
-  // 防ぐべき手を探す
   for (const [a, b, c] of lines) {
     const line = [squares[a], squares[b], squares[c]];
-    const marks = line.filter(Boolean);
-    if (marks.filter(m => m === opponentMark).length === 2 && line.includes(null)) {
+    if (line.filter(m => m === opponentMark).length === 2 && line.includes(null)) {
       return [a, b, c].find(i => squares[i] === null);
     }
   }
 
-  // ランダムに選ぶ
-  const emptyIndices = squares.map((v, i) => v === null ? i : null).filter(i => i !== null);
+  const emptyIndices = squares.map((v, i) => (v === null ? i : null)).filter(i => i !== null);
   return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
 }
 
+// 強いCPUロジック（Minimax）
+function findBestMoveMinimax(squares, myMark, opponentMark) {
+  function evaluate(board) {
+    const result = calculateWinner(board);
+    if (result && result.winner === myMark) return 10;
+    if (result && result.winner === opponentMark) return -10;
+    if (result === 'draw') return 0;
+    return null;
+  }
+
+  function minimax(board, isMaximizing) {
+    const score = evaluate(board);
+    if (score !== null) return score;
+
+    if (isMaximizing) {
+      let bestScore = -Infinity;
+      for (let i = 0; i < board.length; i++) {
+        if (board[i] === null) {
+          board[i] = myMark;
+          const score = minimax(board, false);
+          board[i] = null;
+          bestScore = Math.max(bestScore, score);
+        }
+      }
+      return bestScore;
+    } else {
+      let bestScore = Infinity;
+      for (let i = 0; i < board.length; i++) {
+        if (board[i] === null) {
+          board[i] = opponentMark;
+          const score = minimax(board, true);
+          board[i] = null;
+          bestScore = Math.min(bestScore, score);
+        }
+      }
+      return bestScore;
+    }
+  }
+
+  let bestMove = null;
+  let bestScore = -Infinity;
+  for (let i = 0; i < squares.length; i++) {
+    if (squares[i] === null) {
+      squares[i] = myMark;
+      const score = minimax(squares, false);
+      squares[i] = null;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = i;
+      }
+    }
+  }
+  return bestMove;
+}
 
 function calculateWinner(squares) {
   const lines = [
