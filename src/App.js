@@ -80,6 +80,26 @@ function App() {
     for (const i of result.line) highlightSquares[i] = true;
   }
 
+  // 🟢 1. ゲーム状態だけをリセット（盤面、手番）
+  const handleResetGameState = () => {
+    setSquares(Array(9).fill(null));
+    setIsXTurn(true);
+  };
+
+  // 🟢 2. 指定モードでゲーム開始（タイトル → ゲーム画面へ）
+  const startGame = (selectedMode) => {
+    handleResetGameState();
+    setMode(selectedMode);
+    setView('game');
+  };
+
+  // 🟢 3. タイトルに戻る（状態・モードをすべて初期化）
+  const returnToTitle = () => {
+    handleResetGameState();
+    setMode(null);
+    setView('title');
+  };
+
   const handleClick = (index) => {
     if (squares[index] || winner) return;
     const nextSquares = squares.slice();
@@ -87,22 +107,17 @@ function App() {
     setSquares(nextSquares);
     setIsXTurn(!isXTurn);
 
-    // シングルプレイ（CPUのターン）なら即座にランダムでOを置く
+    // CPU行動（1人プレイ時）
     if (mode === 'single' && isXTurn === true) {
       setTimeout(() => {
-        const emptyIndices = nextSquares.map((v, i) => v === null ? i : null).filter(i => i !== null);
-        if (emptyIndices.length === 0 || calculateWinner(nextSquares)) return;
-        const randomIndex = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
-        nextSquares[randomIndex] = 'O';
-        setSquares([...nextSquares]);
-        setIsXTurn(true);
+        const index = findBestMove(nextSquares, 'O', 'X');
+        if (index !== undefined) {
+          nextSquares[index] = 'O';
+          setSquares([...nextSquares]);
+          setIsXTurn(true);
+        }
       }, 300);
     }
-  };
-
-  const handleReset = () => {
-    setSquares(Array(9).fill(null));
-    setIsXTurn(true);
   };
 
   if (view === 'title') {
@@ -110,17 +125,13 @@ function App() {
       <div style={styles.container}>
         <h1>ようこそ 〇×ゲームへ</h1>
         <p>モードを選んでください</p>
-        <button style={styles.titleButton} onClick={() => {
-          handleReset();
-          setMode('single');
-          setView('game');
-        }}>1人で遊ぶ</button>
+        <button style={styles.titleButton} onClick={() => startGame('single')}>
+          1人で遊ぶ
+        </button>
         <br />
-        <button style={styles.titleButton} onClick={() => {
-          handleReset();
-          setMode('multi');
-          setView('game');
-        }}>2人で遊ぶ</button>
+        <button style={styles.titleButton} onClick={() => startGame('multi')}>
+          2人で遊ぶ
+        </button>
       </div>
     );
   }
@@ -132,29 +143,67 @@ function App() {
         {winner === 'draw'
           ? '引き分けです'
           : winner
-          ? `勝者: ${winner}`
-          : `次の手番: ${isXTurn ? 'X' : 'O'}`}
+            ? `勝者: ${winner}`
+            : `次の手番: ${isXTurn ? 'X' : 'O'}`}
       </p>
       <div>
         {[0, 1, 2].map((row) => (
           <div key={row} style={styles.boardRow}>
-            <Square value={squares[row * 3]} onClick={() => handleClick(row * 3)} highlight={highlightSquares[row * 3]} />
-            <Square value={squares[row * 3 + 1]} onClick={() => handleClick(row * 3 + 1)} highlight={highlightSquares[row * 3 + 1]} />
-            <Square value={squares[row * 3 + 2]} onClick={() => handleClick(row * 3 + 2)} highlight={highlightSquares[row * 3 + 2]} />
+            {[0, 1, 2].map((col) => {
+              const index = row * 3 + col;
+              return (
+                <Square
+                  key={index}
+                  value={squares[index]}
+                  onClick={() => handleClick(index)}
+                  highlight={highlightSquares[index]}
+                />
+              );
+            })}
           </div>
         ))}
       </div>
-      <button onClick={handleReset} style={styles.resetButton}>リセット</button>
-      <button onClick={() => {
-        handleReset();
-        setView('title');
-        setMode(null);
-      }} style={styles.returnButton}>
+      <button onClick={handleResetGameState} style={styles.resetButton}>
+        リセット
+      </button>
+      <button onClick={returnToTitle} style={styles.returnButton}>
         タイトルに戻る
       </button>
     </div>
   );
 }
+
+
+function findBestMove(squares, myMark, opponentMark) {
+  const lines = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6],
+  ];
+
+  // 勝てる手を探す
+  for (const [a, b, c] of lines) {
+    const line = [squares[a], squares[b], squares[c]];
+    const marks = line.filter(Boolean);
+    if (marks.filter(m => m === myMark).length === 2 && line.includes(null)) {
+      return [a, b, c].find(i => squares[i] === null);
+    }
+  }
+
+  // 防ぐべき手を探す
+  for (const [a, b, c] of lines) {
+    const line = [squares[a], squares[b], squares[c]];
+    const marks = line.filter(Boolean);
+    if (marks.filter(m => m === opponentMark).length === 2 && line.includes(null)) {
+      return [a, b, c].find(i => squares[i] === null);
+    }
+  }
+
+  // ランダムに選ぶ
+  const emptyIndices = squares.map((v, i) => v === null ? i : null).filter(i => i !== null);
+  return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+}
+
 
 function calculateWinner(squares) {
   const lines = [
